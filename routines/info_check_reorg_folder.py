@@ -393,8 +393,8 @@ def parse_filename(filename, initial_list, home_id_dict, round_dict,
                     'Dfab', 'library', 'IRFRM', 'CONF', 'conference',
                     'K', 'dining', 'DiningRoom', 'front room',
                     'frontroom', 'upstairs', 'supplyAir', 'cleanzone',
-                    'coldzone', 'FamilyRoom', 'BackPorch',
-                    'untreatedzone']
+                    'coldzone', 'FamilyRoom', 'BackPorch', 'master',
+                    'untreatedzone', 'office1', 'office2', 'roof']
     equip_id_lookup = pd.read_csv(os.getcwd() + \
                                   '/input/mis_equip_id_lookup.csv')
     mis_equip_id_dict = dict(zip(equip_id_lookup['filename'],
@@ -849,32 +849,32 @@ def cleaning_dylos(x):
     # 3. copy from round_excel to round_all
     # copy_excel()
 
-    separate('/DataBySensor/Dylos/raw_data/round_{0}/'.format(x), '*')
+    # separate('/DataBySensor/Dylos/raw_data/round_{0}/'.format(x), '*')
 
-    reformat('/DataBySensor/Dylos/separate/round_{0}/'.format(x),
-             '*_dylos.[a-z][a-z][a-z]', 'dylos')
-    reformat('/DataBySensor/Dylos/separate/round_{0}/'.format(x),
-             '*_putty.[a-z][a-z][a-z]', 'putty')
-    reformat('/DataBySensor/Dylos/separate/round_{0}/'.format(x),
-             '*_unknown.[a-z][a-z][a-z]', 'unknown')
-    convert_unit('/DataBySensor/Dylos/reformat/round_{0}/'.format(x), 
-                 '*.[a-z][a-z][a-z]')
-    dropdup('/DataBySensor/Dylos/convert_unit/round_{0}/'.format(x),
-            '*.[a-z][a-z][a-z]')
-    summary_stat('Dylos', 'dropdup', 'all', '*.[a-z][a-z][a-z]')
-    summary_label('/DataBySensor/Dylos/dropdup/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
-    # print 'end'
-    summary_all_general('/DataBySensor/Dylos/dropdup/round_{0}/'.format(x), 'dylos', 'all')
-    remove_dup_files('dropdup', x)
-    correct_time()
-    chop_wrong_time()
-    summary_stat('Dylos', 'chop_start', 'all', '*.[a-z][a-z][a-z]')
-    summary_label('/DataBySensor/Dylos/chop_start/round_all/',
-                  '*.[a-z][a-z][a-z]', 'dylos')
-    summary_all_general('/DataBySensor/Dylos/chop_start/round_all/',
-                        'dylos', 'all')
-    add_equip_original('chop_start', 'all')
-    remove_dup_files('chop_start', 'all')
+    # reformat('/DataBySensor/Dylos/separate/round_{0}/'.format(x),
+    #          '*_dylos.[a-z][a-z][a-z]', 'dylos')
+    # reformat('/DataBySensor/Dylos/separate/round_{0}/'.format(x),
+    #          '*_putty.[a-z][a-z][a-z]', 'putty')
+    # reformat('/DataBySensor/Dylos/separate/round_{0}/'.format(x),
+    #          '*_unknown.[a-z][a-z][a-z]', 'unknown')
+    # convert_unit('/DataBySensor/Dylos/reformat/round_{0}/'.format(x), 
+    #              '*.[a-z][a-z][a-z]')
+    # dropdup('/DataBySensor/Dylos/convert_unit/round_{0}/'.format(x),
+    #         '*.[a-z][a-z][a-z]')
+    # summary_stat('Dylos', 'dropdup', 'all', '*.[a-z][a-z][a-z]')
+    # summary_label('/DataBySensor/Dylos/dropdup/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
+    # # print 'end'
+    # summary_all_general('/DataBySensor/Dylos/dropdup/round_{0}/'.format(x), 'dylos', 'all')
+    # remove_dup_files('dropdup', x)
+    # correct_time()
+    # chop_wrong_time()
+    # summary_stat('Dylos', 'chop_start', 'all', '*.[a-z][a-z][a-z]')
+    # summary_label('/DataBySensor/Dylos/chop_start/round_all/',
+    #               '*.[a-z][a-z][a-z]', 'dylos')
+    # summary_all_general('/DataBySensor/Dylos/chop_start/round_all/',
+    #                     'dylos', 'all')
+    # add_equip_original('chop_start', 'all')
+    # remove_dup_files('chop_start', 'all')
     copy2dropbox()
     return
 
@@ -1087,6 +1087,52 @@ def concat_dylos(gb_list):
     # summary_stat('/DataBySensor/Dylos/concat/round_all/', '*.[a-z][a-z][a-z]')
     return
 
+def merge_loc(concat_path):
+    files = glob.glob(get_path('Dylos', concat_path, 'all') + '*.csv')
+    filenames = [f[f.rfind('/') + 1:] for f in files]
+    df = pd.DataFrame({'filename': filenames})
+    df['home_id'] = df['filename'].map(lambda x: x[:x.find('_')])
+    gr = df.groupby('home_id')
+    cat = ['Small', 'Large']
+    # for name, group in gr:
+    # name = 'AE'
+    # group = gr.get_group(name)
+    merge_path = concat_path.replace('concat', 'merge')
+    for name, group in list(gr):
+        print name
+        directory = get_path('Dylos', merge_path, 'all') + \
+            'plot/{0}'.format(name)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        infile = get_path('Dylos', merge_path, 'all') + 'plot/dygraph-combined-dev.js'
+        outfile = infile.replace('plot', 'plot/{0}'.format(name))
+        shutil.copyfile(infile, outfile)
+        fs = group['filename'].tolist()
+        dfs = []
+        for f in fs:
+            df = pd.read_csv(get_path('Dylos', concat_path, 'all') + f)
+            df['location'] = f[f.find('_') + 1:f.find('.')]
+            dfs.append(df)
+        df_all = pd.concat(dfs, ignore_index=False)
+        with open(get_path('Dylos', merge_path, 'all') + 'plot/template.html', 'r') as rd:
+            lines = rd.readlines()
+        def replace(string, name, cat):
+            string = string.replace('AE', name)
+            string = string.replace('Small', cat)
+            return string
+        for c in cat:
+            df_temp = df_all.copy()
+            df_temp = df_temp[['Date/Time', c, 'location']]
+            df_p = df_temp.pivot(index='Date/Time', columns='location', values=c)
+            df_p.to_csv('{0}{1}_{2}.csv'.format(get_path('Dylos', merge_path, 'all'), name, c))
+            df_p.set_index(pd.DatetimeIndex(pd.to_datetime(df_p.index)), inplace=True)
+            df_r = df_p.resample('15T', how='mean')
+            df_r.to_csv('{0}plot/{1}/{1}_{2}_15T.csv'.format(get_path('Dylos', merge_path, 'all'), name, c))
+            newlines = [replace(x, name, c) for x in lines]
+            with open(get_path('Dylos', merge_path, 'all') + 'plot/{0}/{0}_{1}.html'.format(name, c), 'w+') as wt:
+                wt.write(''.join(newlines))
+
+
 def mergeIRO():
     files = glob.glob(get_path('Dylos', 'concat', 'all') + '*.csv')
     filenames = [f[f.rfind('/') + 1:] for f in files]
@@ -1291,14 +1337,26 @@ def chop_wrong_time():
         wt.write('\n'.join(lines))
     return
     
+def copyplot2Dropbox():
+    indir = get_path('Dylos', 'merge_gen_spe', 'all') + 'plot/'
+    outdir = '/home/yujiex/Dropbox/plot'
+    shutil.rmtree(outdir)
+    shutil.copytree(indir, outdir)
+    print 'end'
+    return
+
 # routinely run to get the summary
 def run_routine():
     # -- dylos -- #
     # cleaning_dylos('all')
     # concat_dylos(['general_location_standard'])
-    concat_dylos(['general_location_standard',
-                  'specific_location_standard'])
     # mergeIRO()
+
+    # added 0725 to create dygraphs
+    # concat_dylos(['general_location_standard',
+    #               'specific_location_standard'])
+    # merge_loc('concat_gen_spe')
+    copyplot2Dropbox()
 
     # -- speck -- #
     # kind = 'speck'
@@ -1556,7 +1614,7 @@ def copy2dropbox():
     summaries = glob.glob(get_path('Dylos', 'chop_start', 'all') + 'summary/*.csv')
     for f in summaries:
         print 'copy summary: {0}'.format(f[f.rfind('/') + 1:])
-        outfile = f.replace('/media/yujiex/work/ROCIS/DataBySensor/', '/home/yujiex/Dropbox/')
+        outfile = f.replace('/media/yujiex/work/ROCIS/ROCIS/DataBySensor/', '/home/yujiex/Dropbox/')
         shutil.copyfile(f, outfile)
         
 # count number of files received per home
