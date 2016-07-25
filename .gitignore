@@ -1,0 +1,74 @@
+DataBySensor/
+
+# document #
+###################
+*.pdf
+*.docx
+
+# webpages #
+###################
+*.html
+*.html~
+*.json
+*.json~
+*.js
+*.woff
+*.woff2
+*.tff
+*.svg
+*.eot
+*.css
+
+# backup files #
+###################
+*~
+
+# plots #
+###################
+*.png
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+*.py~
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+*.swp
+*.db
+*.csv
+*.txt
+*.xlsx
+*.xls
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
