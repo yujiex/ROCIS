@@ -1355,7 +1355,7 @@ def run_routine():
     # added 0725 to create dygraphs
     # concat_dylos(['general_location_standard',
     #               'specific_location_standard'])
-    # merge_loc('concat_gen_spe')
+    merge_loc('concat_gen_spe')
     copyplot2Dropbox()
 
     # -- speck -- #
