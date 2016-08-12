@@ -37,6 +37,7 @@ DataBySensor/
 *.so
 *.pyc
 *.py~
+*.Rhistory
 
 # Packages #
 ############
