@@ -12,6 +12,7 @@ import shutil
 import time
 from pandas.tseries.offsets import *
 import random
+import cleaning_dylos as cd
 
 def timing(ori, current, funname):
     print '{0} takes {1}s...'.format(funname, current - ori)
@@ -27,8 +28,11 @@ speck_summary_path = parent_dir(os.getcwd()) + '/DataBySensor/Speck/raw_data/rou
 speck_raw_data_path = parent_dir(os.getcwd()) + '/DataBySensor/Speck/raw_data/round_all_bulkdownload/'
 speck_concat_path = parent_dir(os.getcwd()) + '/DataBySensor/Speck/concat/round_all_bulkdownload/'
 
-def get_path(sensor, step, cohort):
-    return '{0}/DataBySensor/{1}/{2}/round_{3}/'.format(parent_dir(os.getcwd()), sensor, step, cohort)
+def get_path(sensor, step, cohort=None):
+    if cohort is None:
+        return '{0}/DataBySensor/{1}/{2}/'.format(parent_dir(os.getcwd()), sensor, step)
+    else:
+        return '{0}/DataBySensor/{1}/{2}/round_{3}/'.format(parent_dir(os.getcwd()), sensor, step, cohort)
     
 # convert particles per cubic foot to hundred cubic foot
 def get_multiplier_nskip(f):
@@ -169,7 +173,6 @@ def format_match(string):
 # print format_match('01/00 00:12,1821,60')
 # print format_match('01/01/00 00:12,1821,60\r\n')
 # print format_match('01/08/16 13:07, 649000, 15700\r\n')
-
 
 def reformat(folder, suffix, loggertype):
     print '-- reformatting file header start --'
@@ -1745,13 +1748,60 @@ def join_zero_count():
     print df_all.to_csv(get_path('Dylos', 'chop_start', 'all') + \
                         'summary/zero_count_winfo.csv', index=False)
     print 'end'
+    
+def read_files(files, cutoff_start=None):
+    dfs = []
+    for f in files:
+        df = pd.read_csv(f)
+        filename = f[f.rfind('/') + 1:]
+        name = filename[:filename.find('.')]
+        print name
+        df.set_index(pd.DatetimeIndex(pd.to_datetime(df['Date/Time'])), inplace=True)
+        if not cutoff_start is None:
+            df = df[df.index > pd.to_datetime(cutoff_start)]
+        if len(df) == 0:
+            continue
+        df_r = df.resample('15T', how='mean')
+        df_r.rename(columns={'Small': name}, inplace=True)
+        dfs.append(df_r[[name]])
+    df = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True, how='outer'), dfs)
+    return df
+    
+def substitute_template(csvpath):
+    with open(os.getcwd() + '/input/template.html', 'r') as rd:
+        lines = rd.readlines()
+    length = len(lines)
+    for i in range(length):
+        lines[i] = lines[i].replace("AE_Small_15T.csv", "{0}.csv".format(csvpath))
+        lines[i] = lines[i].replace("AE_Small 15 Min Average", "Small 15 Min Average")
+    with open (get_path('Dylos', 'to_calibrate') + \
+               'plot/{0}.html'.format(csvpath), 'w+') as wt:
+        wt.write(''.join(lines))
+
+def dygraph_calibrate():    
+    # files = glob.glob(get_path('Dylos', 'to_calibrate') + '*.log')
+    # for f in files:
+    #     cd.cleaning(f, f.replace('to_calibrate/',
+    #                              'to_calibrate/clean/'))
+    cutoff_start = pd.to_datetime('2016-07-26 12:00:00')
+    files = glob.glob(get_path('Dylos', 'to_calibrate/clean/') + '*.log')
+    group1 = [x for x in files if not 'LW' in x]
+    group2 = [x for x in files if 'LW' in x]
+    df = read_files(group1, cutoff_start=cutoff_start)
+    df.to_csv(get_path('Dylos', 'to_calibrate') + 'plot/small_Calib.csv')
+    substitute_template('small_Calib')   
+    df = read_files(group2, cutoff_start=cutoff_start)
+    df.to_csv(get_path('Dylos', 'to_calibrate') + 'plot/small_LWCalib.csv')
+    substitute_template('small_LWCalib')
 
 def main():
+    dygraph_calibrate()
+    # Create participant - harshing (anonymus ID)
     # id_hash()
-    # combine_dygraph_IOR('O', cohort=9)
-    # for i in (range(1, 7) + [8, 9]):
-    for i in [7]:
-        combine_dygraph_IOR('O', cohort=i)
+
+    # Create dygraphs for Dylos outdoor for each cohort
+    # for i in (range(1, 9)):
+    #     combine_dygraph_IOR('O', cohort=i)
     # peak_find('SPR')
     # ## ## ## ## ## ## ## ## ## ## ## #
     # Dylos cleaning_dylos and summary #
