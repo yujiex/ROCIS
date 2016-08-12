@@ -11,6 +11,7 @@ import re
 import shutil
 import time
 from pandas.tseries.offsets import *
+import random
 
 def timing(ori, current, funname):
     print '{0} takes {1}s...'.format(funname, current - ori)
@@ -831,14 +832,6 @@ def copy_o_bhw2kd():
             shutil.copy(infile, outfile)
             print '{0} -> {1}'.format(infile[infile.rfind('/') + 1:], outfile[outfile.rfind('/') + 1:])
     return
-    
-def add_equip_original(step, x):
-    for kind in ['Large', 'Small']:
-        f = get_path('Dylos', step, x) + \
-            'summary/{0}_round_{1}.csv'.format(kind, x)
-        df = pd.read_csv(f)
-        df['equip_id_no_cohort'] = df['equip_id_standard'].map(lambda x: x[:1] + '0' + x[2:])
-        print df[['filename', 'equip_id_no_cohort', 'equip_id_standard']].head()
 
 def cleaning_dylos(x):
     # manual modifications:
@@ -874,7 +867,7 @@ def cleaning_dylos(x):
     # summary_all_general('/DataBySensor/Dylos/chop_start/round_all/',
     #                     'dylos', 'all')
     # add_equip_original('chop_start', 'all')
-    # remove_dup_files('chop_start', 'all')
+    remove_dup_files('chop_start', 'all')
     copy2dropbox()
     return
 
@@ -1006,15 +999,13 @@ def remove_dup_files(step, x):
         print len(df3)
         df3.reset_index(inplace=True)
         cols = set(list(df3))
-        head = set(['home_id_standard', 'filename',
-                    'general_location_standard',
-                    'specific_location_standard', 'equip_id_standard',
-                    'Raw Start Time', 'Raw End Time'])
-        tail = cols.difference(head)
-        newcols = ['home_id_standard', 'filename',
-                    'general_location_standard',
-                    'specific_location_standard', 'equip_id_standard',
-                    'Raw Start Time', 'Raw End Time'] + list(tail)
+        df3['equip_id_no_cohort'] = df3['equip_id_standard'].map(lambda x: x[:1] + '0' + x[2:])
+        head = ['home_id_standard', 'filename', 'equip_id_no_cohort',
+                'general_location_standard',
+                'specific_location_standard', 'equip_id_standard',
+                'Raw Start Time', 'Raw End Time']
+        tail = cols.difference(set(head))
+        newcols = head + list(tail)
         df3 = df3[newcols]
         df3.sort(['home_id_standard', 'Raw End Time', 'general_location_standard'], inplace=True)
         df3 = df3[~df3['filename'].isin(files_todrop)]
@@ -1339,14 +1330,104 @@ def chop_wrong_time():
     
 def copyplot2Dropbox():
     indir = get_path('Dylos', 'merge_gen_spe', 'all') + 'plot/'
-    outdir = '/home/yujiex/Dropbox/plot'
+    outdir = '/home/yujiex/Dropbox/plot2'
     shutil.rmtree(outdir)
     shutil.copytree(indir, outdir)
     print 'end'
     return
+    
+def id_hash():
+    df_id = pd.read_csv(os.getcwd() + '/input/ROCIS  LCMP Participants by Cohort_03-15-2016.csv')
+    ids = df_id['HOME ID CORRECT'].unique()
+    length = len(ids)
+    random.seed(10)
+    hashing = random.sample(range(1000, 9000), length)
+    df_hash = pd.DataFrame({'home_id_standard': ids, 'hashing':
+                            hashing})
+    df_hash.to_csv(os.getcwd() + '/input/id_hashing.csv', index=False)
+    print 'write to id_hashing.csv'
+    return
+    
+# create dygraphs for all Outdoors
+def combine_dygraph_IOR(loc, cohort=None):
+    files = glob.glob(get_path('Dylos', 'concat_gen_spe', 'all') + '*.csv')
+    print len(files)
+    df_id = pd.read_csv(os.getcwd() + '/input/ROCIS  LCMP Participants by Cohort_03-15-2016.csv')
+    df_time = pd.read_csv(os.getcwd() + '/input/cohort_time.csv')
+    df_time.set_index('round', inplace=True)
+    df_hash = pd.read_csv(os.getcwd() + '/input/id_hashing.csv')
+    df_hash.set_index('home_id_standard', inplace=True)
+    nb_dict = dict(zip(df_id['HOME ID CORRECT'],
+                       df_id['NEIGHBORHOOD']))
+    if not cohort is None:
+        ids = df_id[df_id['ROUND'] == cohort]['HOME ID CORRECT']
+        cutoff_start = df_time.ix[cohort, 'cohort start time']
+        cutoff_end = df_time.ix[cohort, 'cohort end time']
+    else:
+        ids = df_id['HOME ID CORRECT']
+    print len(ids)
+    outfiles = []
+    for name in ids:
+        print '{0}_{1}'.format(name, loc)
+        outfiles += [x for x in files if '{0}_{1}'.format(name, loc)
+                     in x]
+    print len(outfiles)
+    df_id.set_index('HOME ID CORRECT', inplace=True)
+    dfs = []
+    # outfiles = [x for x in outfiles if 'CAW' in x]
+    for f in outfiles:
+        df = pd.read_csv(f)
+        filename = f[f.rfind('/') + 1:]
+        print filename
+        name = filename[:filename.find('_')]
+        print name
+        loc = filename[filename.find('_') + 1: filename.rfind('.')]
+        hashing = df_hash.ix[name, 'hashing']
+        nb = nb_dict[name]
+        df.set_index(pd.DatetimeIndex(pd.to_datetime(df['Date/Time'])), inplace=True)
+        print len(df.index)
+        if not cutoff_start is None:
+            df = df[df.index > pd.to_datetime(cutoff_start)]
+        if not cutoff_end is None:
+            df = df[df.index < pd.to_datetime(cutoff_end)]
+        if len(df) == 0:
+            continue
+        df_r = df.resample('15T', how='mean')
+        newname = '{0}_{1}_{2}'.format(hashing, loc, nb)
+        df_r.rename(columns={'Small': newname}, inplace=True)
+        dfs.append(df_r[[newname]])
+    df = reduce(lambda x, y: pd.merge(x, y, left_index=True, right_index=True, how='outer'), dfs)
+    df.to_csv(get_path('Dylos', 'across', cohort) + 'small_{0}.csv'.format(cohort))
+    with open(get_path('Dylos', 'across', 'all') + 'template.html', 'r') as rd:
+        lines = rd.readlines()
+    length = len(lines)
+    for i in range(length):
+        lines[i] = lines[i].replace("AE_Small_15T.csv", "small_{0}.csv".format(cohort))
+        if not cohort is None:
+            lines[i] = lines[i].replace("AE_Small 15 Min Average", "Cohort {0} Small 15 Min Average".format(cohort))
+        else:
+            lines[i] = lines[i].replace("AE_Small 15 Min Average", "Small 15 Min Average")
+    with open (get_path('Dylos', 'across', cohort) + 'small.html', 'w+') as wt:
+        wt.write(''.join(lines))
+
+# bookmark
+
+def copy2round():
+    files = glob.glob(get_path('Dylos', 'concat_gen_spe', 'all') + '*.csv')
+    loc = 'O'
+    df_id = pd.read_csv(os.getcwd() + '/input/ROCIS  LCMP Participants by Cohort_03-15-2016.csv')
+    ids = df_id[df_id['ROUND'] == 9]['HOME ID CORRECT']
+    outfiles = []
+    for name in ids:
+        outfiles += [x for x in files if '{0}_{1}'.format(name, loc)
+                     in x]
+    for f in outfiles:
+        shutil.copyfile(f, f.replace('round_all', 'round_9'))
+    
 
 # routinely run to get the summary
 def run_routine():
+    copy2round()
     # -- dylos -- #
     # cleaning_dylos('all')
     # concat_dylos(['general_location_standard'])
@@ -1355,8 +1436,8 @@ def run_routine():
     # added 0725 to create dygraphs
     # concat_dylos(['general_location_standard',
     #               'specific_location_standard'])
-    merge_loc('concat_gen_spe')
-    copyplot2Dropbox()
+    # merge_loc('concat_gen_spe')
+    # copyplot2Dropbox()
 
     # -- speck -- #
     # kind = 'speck'
@@ -1666,6 +1747,11 @@ def join_zero_count():
     print 'end'
 
 def main():
+    # id_hash()
+    # combine_dygraph_IOR('O', cohort=9)
+    # for i in (range(1, 7) + [8, 9]):
+    for i in [7]:
+        combine_dygraph_IOR('O', cohort=i)
     # peak_find('SPR')
     # ## ## ## ## ## ## ## ## ## ## ## #
     # Dylos cleaning_dylos and summary #
@@ -1677,9 +1763,9 @@ def main():
     # copyfiles('SLK', '/media/yujiex/work/ROCIS/DataBySensor/tempcopy/')
     # zero_count()
     # join_zero_count()
-    kind = 'dylos'
-    cohort = 'all'
-    run_routine()
+    # kind = 'dylos'
+    # cohort = 'all'
+    # run_routine()
     # file_counts_per_home()
 
     # additional dylos summary
