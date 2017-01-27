@@ -16,6 +16,8 @@ import cleaning_dylos as cd
 import util
 
 step_size = 100
+start_year = 2014
+end_year = 2018
 
 def timing(ori, current, funname):
     print '{0} takes {1}s...'.format(funname, current - ori)
@@ -644,7 +646,6 @@ def summary_all_general(folder, kind, x):
     dirname = (parent_dir(os.getcwd()) + folder)
     df_label = pd.read_csv(dirname + 'label_summary/label.csv')
     files_stat = glob.glob(dirname + 'stat_summary/*_{0}.csv'.format(x))
-    print len(files_stat)
     def filename_standard_d(row):
         try: 
             result = '{0}_{1}_{2}_{3}'.format(row['home_id_standard'],
@@ -652,6 +653,7 @@ def summary_all_general(folder, kind, x):
                 row['equip_id_standard'],
                 (row['Raw End Time']).strftime('%m-%d-%y'))
         except ValueError:
+            print row['filename']
             result = '{0}_{1}_{2}_{3}'.format(row['home_id_standard'],
                 row['general_location_standard'],
                 row['equip_id_standard'],
@@ -661,7 +663,9 @@ def summary_all_general(folder, kind, x):
         filename = f[f.rfind('/') + 1:]
         datecols = ['Raw Start Time', 'Raw End Time']
         df_stat = pd.read_csv(f, parse_dates=datecols)
-        df_1 = pd.merge(df_stat, df_label, on='filename', how='outer')
+        # df_1 = pd.merge(df_stat, df_label, on='filename', how='outer')
+        # keep non-empty files
+        df_1 = pd.merge(df_stat, df_label, on='filename', how='inner')
         if kind == 'dylos':
             df_1.to_csv(util.get_path('Dylos', 'temp', x) + 'merge.csv', index=False)
             df_1['filename_standard'] = df_1.apply(lambda row: \
@@ -811,7 +815,8 @@ def copy_excel():
         df['Large'] = df['Large'].map(int)
         outfile = f.replace('excel', 'all')
         outfile = outfile.replace('.csv', '.txt')
-        outfile = outfile.replace('raw_data', 'reformat')
+        # outfile = outfile.replace('raw_data', 'reformat')
+        outfile = outfile.replace('raw_data', 'reform_')
         print 'copy file {0}'.format(outfile)
         df.to_csv(outfile, index=False)
 
@@ -846,7 +851,14 @@ def cleaning_dylos(x):
     # 3. copy from round_excel to round_all
     # copy_excel()
 
-    # files = glob.glob(util.get_path('Dylos', 'raw_data', 'all') + '*')
+    # need to replace 'new_data' folder with newly downloaded
+    # newfiles = glob.glob(util.get_path('Dylos', 'new_data') + '*')
+    # for infile in newfiles:
+    #     shutil.copyfile(infile, infile.replace('new_data', 'raw_data/round_all'))
+    #     print 'copy {0}'.format(infile[infile.rfind('/') + 1:])
+    # # use this if need to process all raw data
+    # # files = glob.glob(util.get_path('Dylos', 'raw_data', 'all') + '*')
+    # files = [z.replace('new_data', 'raw_data/round_all') for z in newfiles]
     # mlines = ['filename,multiplier\n']
     # for i, f in enumerate(files):
     #     if i % step_size == 0:
@@ -856,10 +868,10 @@ def cleaning_dylos(x):
     # with open (util.get_path('Dylos', 'reform_', 'all') + 'summary/m.csv', 'w+') as wt:
     #     wt.write(''.join(mlines))
 
-    summary_stat('Dylos', 'reform_', 'all', '*')
-    # summary_label('/DataBySensor/Dylos/dropdup/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
-    # summary_all_general('/DataBySensor/Dylos/dropdup/round_{0}/'.format(x), 'dylos', 'all')
-    # remove_dup_files('dropdup', x)
+    # summary_stat('Dylos', 'reform_', 'all', '*')
+    # summary_label('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
+    # summary_all_general('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), 'dylos', 'all')
+    # remove_dup_files('reform_', x)
     # correct_time()
     # chop_wrong_time()
     # summary_stat('Dylos', 'chop_start', 'all', '*.[a-z][a-z][a-z]')
@@ -1219,7 +1231,7 @@ def location_summary_dylos(location):
                          '/*_{0}.csv'.format(location))
     dfs = [pd.read_csv(f) for f in filelist]
     df_all = pd.concat(dfs, ignore_index=True)
-    df_all['time_in_range'] = df_all['Date/Time'].map(lambda x: int(x[:4]) > 2014 and int(x[:4]) < 2017)
+    df_all['time_in_range'] = df_all['Date/Time'].map(lambda x: right_year(x))
     df_all = df_all[df_all['time_in_range']]
     df_all.drop('time_in_range', axis=1, inplace=True)
     df_all.set_index(pd.DatetimeIndex(df_all['Date/Time']),
@@ -1533,21 +1545,17 @@ def run_routine():
 
 def flag_wrong_time():
     summary_files = glob.glob(parent_dir(os.getcwd()) +
-                              '/DataBySensor/Dylos/dropdup/round_all/'
+                              '/DataBySensor/Dylos/reform_/round_all/'
                               + 'summary/*.csv')
     for f in summary_files:
         df = pd.read_csv(f)
         df['year_start'] = df['Raw Start Time'].map(lambda x: int(x[:4]))
         df['year_end'] = df['Raw End Time'].map(lambda x: int(x[:4]))
-        df['wrong timestamp_start'] = df['year_start'].map(lambda x: x
-                                                           < 2015 or x
-                                                           > 2017)
-        df['wrong timestamp_end'] = df['year_end'].map(lambda x: x <
-                                                       2015 or x >
-                                                       2017)
+        df['wrong timestamp_start'] = df['year_start'].map(lambda x: not right_year(x))
+        df['wrong timestamp_end'] = df['year_end'].map(lambda x: not right_year(x))
         df['wrong timestamp'] = df.apply(lambda r: r['wrong timestamp_start'] or r['wrong timestamp_end'], axis=1)
         df.to_csv(f, index=False)
-    return
+    return 
     
 # BOOKMARK
 def time_range(end_time, length):
@@ -1564,7 +1572,7 @@ def calculate_time_range(first_right_idx, stamps):
     return output[:-1]
 
 def right_year(year):
-    return year > 2014 and year < 2017
+    return int(year) > start_year and int(year) < end_year
 
 def manual_adjust_time(f, amount, direction):
     df = pd.read_csv(f)
@@ -1582,7 +1590,7 @@ def manual_adjust_time(f, amount, direction):
 def correct_time():
     flag_wrong_time()
     df_summary = pd.read_csv(parent_dir(os.getcwd()) + \
-                             '/DataBySensor/Dylos/dropdup/round_all/'
+                             '/DataBySensor/Dylos/reform_/round_all/'
                              + 'summary/Small_round_all.csv')
     filenames = df_summary['filename'].tolist()
     existing = glob.glob(util.get_path('Dylos', 'correct_time', 'all') + '*')
@@ -1632,8 +1640,7 @@ def correct_time():
         years = [int('20'+x[6:8]) for x in stamps]
         # print i, filename 
         try:
-            first_right_year = next(x for x in years if x > 2014 and x
-                                    < 2017)
+            first_right_year = next(x for x in years if right_year(x))
             first_right_idx = years.index(first_right_year)
             lines.append(','.join([filename, '', 'partially wrong',
                                    stamps[first_right_idx], '', '']))
