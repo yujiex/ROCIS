@@ -852,35 +852,35 @@ def cleaning_dylos(x):
     # copy_excel()
 
     # need to replace 'new_data' folder with newly downloaded
-    # newfiles = glob.glob(util.get_path('Dylos', 'new_data') + '*')
-    # for infile in newfiles:
-    #     shutil.copyfile(infile, infile.replace('new_data', 'raw_data/round_all'))
-    #     print 'copy {0}'.format(infile[infile.rfind('/') + 1:])
-    # # use this if need to process all raw data
-    # # files = glob.glob(util.get_path('Dylos', 'raw_data', 'all') + '*')
-    # files = [z.replace('new_data', 'raw_data/round_all') for z in newfiles]
-    # mlines = ['filename,multiplier\n']
-    # for i, f in enumerate(files):
-    #     if i % step_size == 0:
-    #         print i
-    #     m = cd.cleaning(f, f.replace('raw_data', 'reform_'))
-    #     mlines.append('{0},{1}\n'.format(f[f.rfind('/') + 1:], m))
-    # with open (util.get_path('Dylos', 'reform_', 'all') + 'summary/m.csv', 'w+') as wt:
-    #     wt.write(''.join(mlines))
+    newfiles = glob.glob(util.get_path('Dylos', 'new_data') + '*')
+    for infile in newfiles:
+        shutil.copyfile(infile, infile.replace('new_data', 'raw_data/round_all'))
+        print 'copy {0}'.format(infile[infile.rfind('/') + 1:])
+    # use this if need to process all raw data
+    # files = glob.glob(util.get_path('Dylos', 'raw_data', 'all') + '*')
+    files = [z.replace('new_data', 'raw_data/round_all') for z in newfiles]
+    mlines = ['filename,multiplier\n']
+    for i, f in enumerate(files):
+        if i % step_size == 0:
+            print i
+        m = cd.cleaning(f, f.replace('raw_data', 'reform_'))
+        mlines.append('{0},{1}\n'.format(f[f.rfind('/') + 1:], m))
+    with open (util.get_path('Dylos', 'reform_', 'all') + 'missing_summary/m.csv', 'w+') as wt:
+        wt.write(''.join(mlines))
 
-    # summary_stat('Dylos', 'reform_', 'all', '*')
-    # summary_label('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
-    # summary_all_general('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), 'dylos', 'all')
-    # remove_dup_files('reform_', x)
-    # correct_time()
-    # chop_wrong_time()
-    # summary_stat('Dylos', 'chop_start', 'all', '*.[a-z][a-z][a-z]')
-    # summary_label('/DataBySensor/Dylos/chop_start/round_all/',
-    #               '*.[a-z][a-z][a-z]', 'dylos')
-    # summary_all_general('/DataBySensor/Dylos/chop_start/round_all/',
-    #                     'dylos', 'all')
-    # remove_dup_files('chop_start', 'all')
-    # copy2dropbox()
+    summary_stat('Dylos', 'reform_', 'all', '*')
+    summary_label('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
+    summary_all_general('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), 'dylos', 'all')
+    remove_dup_files('reform_', x)
+    correct_time()
+    chop_wrong_time()
+    summary_stat('Dylos', 'chop_start_', 'all', '*.[a-z][a-z][a-z]')
+    summary_label('/DataBySensor/Dylos/chop_start_/round_all/',
+                  '*.[a-z][a-z][a-z]', 'dylos')
+    summary_all_general('/DataBySensor/Dylos/chop_start_/round_all/',
+                        'dylos', 'all')
+    remove_dup_files('chop_start_', 'all')
+    copy2dropbox()
     return
 
 # not using copy_o_bhw2kd(), because Linda is manually copying
@@ -1067,7 +1067,7 @@ def join_static_rounddate(kind, round):
 # gb_list is a list of columns to group by
 def concat_dylos(gb_list,cohort=None, history=True, home=None):
     print 'concatenating dylos files by home id standard ...'
-    df_summary = pd.read_csv(util.get_path('Dylos', 'chop_start', 'all') + 'summary/Small_round_all_unique.csv')
+    df_summary = pd.read_csv(util.get_path('Dylos', 'chop_start_', 'all') + 'summary/Small_round_all_unique.csv')
 
     if not cohort is None:
         if not history:
@@ -1087,7 +1087,7 @@ def concat_dylos(gb_list,cohort=None, history=True, home=None):
         files = group['filename'].tolist()
         dfs = []
         for f in files:
-            df = pd.read_csv(util.get_path('Dylos', 'chop_start', 'all') + f)
+            df = pd.read_csv(util.get_path('Dylos', 'chop_start_', 'all') + f)
             # df['filename'] = f
             dfs.append(df)
         df_all = pd.concat(dfs, ignore_index=False)
@@ -1325,7 +1325,7 @@ def summary_location_home_by_cohort():
 # BOOKMARK PROCESS NEW FILES
 def chop_wrong_time():
     # print 'chopping wrong time ...'
-    df_summary = pd.read_csv(util.get_path('Dylos', 'correct_time', 'all') +
+    df_summary = pd.read_csv(util.get_path('Dylos', 'correct_time_', 'all') +
                              'summary/Small_round_all.csv')
     df_time = pd.read_csv(os.getcwd() + '/input/cohort_time.csv')
     df_time['round'] = df_time['round'].map(lambda x: str(x))
@@ -1337,12 +1337,12 @@ def chop_wrong_time():
     df_summary2['need to chop'] = df_summary2.apply(lambda r: r['Raw Start Time'] < r['cohort start time'], axis=1)
     df_summary2.to_csv(util.get_path('Dylos', 'temp', 'all') + 'start_time.csv', index=False)
     r_files = df_summary2[~df_summary2['need to chop']]['filename'].tolist()
-    existing = glob.glob(util.get_path('Dylos', 'chop_start', 'all') + '*')
+    existing = glob.glob(util.get_path('Dylos', 'chop_start_', 'all') + '*')
     existing_filenames = [x[x.rfind('/') + 1:] for x in existing]
     r_files = list(set(r_files).difference(set(existing_filenames)))
     for f in r_files:
-        infile = util.get_path('Dylos', 'correct_time', 'all') + f
-        outfile = util.get_path('Dylos', 'chop_start', 'all') + f
+        infile = util.get_path('Dylos', 'correct_time_', 'all') + f
+        outfile = util.get_path('Dylos', 'chop_start_', 'all') + f
         print 'copy file ' + f
         shutil.copyfile(infile, outfile)
     df_summary2 = df_summary2[df_summary2['need to chop']]
@@ -1357,7 +1357,7 @@ def chop_wrong_time():
     # filenames = [x for x in filenames if 'NCAbed' in x]
     for f in filenames:
         print f
-        df = pd.read_csv(util.get_path('Dylos', 'correct_time', 'all') + f)
+        df = pd.read_csv(util.get_path('Dylos', 'correct_time_', 'all') + f)
         start_date = df_summary2.ix[f, 'cohort start time']
         if start_date != np.nan:
             df['date_iso'] = pd.to_datetime(df['Date/Time'])
@@ -1365,11 +1365,11 @@ def chop_wrong_time():
             line = '{0},{1},{2}'.format(f, len(df), len(df2))
             print line
             lines.append(line)
-            df2.to_csv(util.get_path('Dylos', 'chop_start', 'all') + f,
+            df2.to_csv(util.get_path('Dylos', 'chop_start_', 'all') + f,
                        index=False)
         ori = timing(ori, time.time(), 'chop_time: {0}'.format(f))
     # append logs to the end
-    with open (util.get_path('Dylos', 'chop_start', 'all') + 'log/log.csv', 'a') as wt:
+    with open (util.get_path('Dylos', 'chop_start_', 'all') + 'log/log.csv', 'a') as wt:
         wt.write('\n'.join(lines))
     return
     
@@ -1503,18 +1503,18 @@ def compute_round():
 def run_routine():
     # copy2round()
     # -- dylos -- #
-    cleaning_dylos('all')
+    # cleaning_dylos('all')
     # concat_dylos(['general_location_standard'])
     # mergeIRO()
 
     # added 0725 to create dygraphs
-    cohort = 15
-    # home = 'PEC'
-    home=None
-    # concat_dylos(['general_location_standard',
-    #               'specific_location_standard'], cohort=cohort, history=False, home=home)
-    # merge_loc('concat_gen_spe', cohort=cohort, history=False, home=home)
-    # copyplot2Dropbox()
+    cohort = 14
+    # home=None
+    home = 'KAM'
+    concat_dylos(['general_location_standard',
+                  'specific_location_standard'], cohort=cohort, history=False, home=home)
+    merge_loc('concat_gen_spe', cohort=cohort, history=False, home=home)
+    copyplot2Dropbox()
     # combine_dygraph_IOR('O', cohort=cohort)
 
     # Create dygraphs for Dylos outdoor for each cohort
@@ -1593,11 +1593,11 @@ def correct_time():
                              '/DataBySensor/Dylos/reform_/round_all/'
                              + 'summary/Small_round_all.csv')
     filenames = df_summary['filename'].tolist()
-    existing = glob.glob(util.get_path('Dylos', 'correct_time', 'all') + '*')
+    existing = glob.glob(util.get_path('Dylos', 'correct_time_', 'all') + '*')
     existing_filenames = [x[x.rfind('/') + 1:] for x in existing]
     filenames = list(set(filenames).difference(set(existing_filenames)))
     print 'correct time for {0} files ...'.format(len(filenames))
-    data_dir = util.get_path('Dylos', 'dropdup', 'all')
+    data_dir = util.get_path('Dylos', 'reform_', 'all')
     df_w = df_summary[df_summary['wrong timestamp']]
     df_r = df_summary[~df_summary['wrong timestamp']] # right
     r_file_names = df_r['filename'].tolist()
@@ -1606,14 +1606,15 @@ def correct_time():
     r_files = [data_dir + x for x in r_file_names]
     print 'copy {0} files ...'.format(len(r_files))
     for f in r_files:
-        outfile = f.replace('dropdup', 'correct_time')
+        print f
+        outfile = f.replace('reform_', 'correct_time_')
         print 'copy file ' + outfile[outfile.rfind('/') + 1:]
         shutil.copyfile(f, outfile)
     # manual adjust time
-    infile = data_dir + 'LIP_I_D117_05-20-2016_upstairs-TIME STAMP OFF BY 90 MINUTES_putty.txt'
-    manual_adjust_time(infile, 1.5, 'forward').to_csv(infile.replace('dropdup', 'correct_time'), index=False)
-    infile = data_dir + 'KD_I_D049_06-05-2016_Basement_Time off by 4 hours see note_putty.txt'
-    manual_adjust_time(infile, 1.5, 'forward').to_csv(infile.replace('dropdup', 'correct_time'), index=False)
+    infile = data_dir + 'LIP_I_D117_05-20-2016_upstairs-TIME STAMP OFF BY 90 MINUTES.txt'
+    manual_adjust_time(infile, 1.5, 'forward').to_csv(infile.replace('reform_', 'correct_time_'), index=False)
+    infile = data_dir + 'KD_I_D049_06-05-2016_Basement_Time off by 4 hours see note.txt'
+    manual_adjust_time(infile, 1.5, 'forward').to_csv(infile.replace('reform_', 'correct_time_'), index=False)
 
     w_file_names = df_w['filename'].tolist()
     w_file_names = \
@@ -1633,9 +1634,9 @@ def correct_time():
         df = pd.read_csv(x)
         # special case, seems to be manual modification
         filename = x[x.rfind('/') + 1:]
-        if filename == "D026_MMM_1stFl_10_03_2015_dylos.txt":
+        if filename == "D026_MMM_1stFl_10_03_2015.txt":
             df.drop(df.index[[0]], inplace=True)
-        outfile = x.replace('dropdup', 'correct_time')
+        outfile = x.replace('reform_', 'correct_time_')
         stamps = df['Date/Time'].tolist()
         years = [int('20'+x[6:8]) for x in stamps]
         # print i, filename 
@@ -1694,15 +1695,15 @@ def correct_time():
             else:
                 print 'no time string for {0}'.format(filename)
     with open(parent_dir(os.getcwd()) + \
-              '/DataBySensor/Dylos/correct_time/round_all/'
+              '/DataBySensor/Dylos/correct_time_/round_all/'
               + 'log/correct_timestamp.csv', 'a') as wt:
         wt.write('\n'.join(lines))
-    summary_stat('Dylos', 'correct_time', 'all', '*.[a-z][a-z][a-z]')
-    summary_label('/DataBySensor/Dylos/correct_time/round_all/',
+    summary_stat('Dylos', 'correct_time_', 'all', '*.[a-z][a-z][a-z]')
+    summary_label('/DataBySensor/Dylos/correct_time_/round_all/',
                   '*.[a-z][a-z][a-z]', 'dylos')
-    summary_all_general('/DataBySensor/Dylos/correct_time/round_all/',
+    summary_all_general('/DataBySensor/Dylos/correct_time_/round_all/',
                         'dylos', 'all')
-    remove_dup_files('correct_time', 'all')
+    remove_dup_files('correct_time_', 'all')
     return
     
 from scipy import signal
@@ -1758,18 +1759,18 @@ def copy2dropbox_speck_bulk(dirname):
     return
 
 def copy2dropbox():
-    files = glob.glob(util.get_path('Dylos', 'chop_start', 'all') + '*.[a-z][a-z][a-z]')
-    existing = glob.glob('/home/yujiex/Dropbox/Dylos/chop_start/round_all/*.[a-z][a-z][a-z]')
+    files = glob.glob(util.get_path('Dylos', 'chop_start_', 'all') + '*.[a-z][a-z][a-z]')
+    existing = glob.glob('/home/yujiex/Dropbox/Dylos/chop_start_/round_all/*.[a-z][a-z][a-z]')
     filenames = [x[x.rfind('/') + 1:] for x in files]
     existing_filenames = [x[x.rfind('/') + 1:] for x in existing]
     new_filenames = list(set(filenames).difference(set(existing_filenames)))
     print 'copy {0} files to Dropbox'.format(len(new_filenames))
     for f in new_filenames:
         print 'copy {0}'.format(f)
-        infile = util.get_path('Dylos', 'chop_start', 'all') + f
-        outfile = '/home/yujiex/Dropbox/Dylos/chop_start/round_all/{0}'.format(f)
+        infile = util.get_path('Dylos', 'chop_start_', 'all') + f
+        outfile = '/home/yujiex/Dropbox/Dylos/chop_start_/round_all/{0}'.format(f)
         shutil.copyfile(infile, outfile)
-    summaries = glob.glob(util.get_path('Dylos', 'chop_start', 'all') + 'summary/*.csv')
+    summaries = glob.glob(util.get_path('Dylos', 'chop_start_', 'all') + 'summary/*.csv')
     for f in summaries:
         print 'copy summary: {0}'.format(f[f.rfind('/') + 1:])
         outfile = f.replace('/media/yujiex/work/ROCIS/ROCIS/DataBySensor/', '/home/yujiex/Dropbox/')
