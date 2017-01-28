@@ -585,10 +585,14 @@ def summary_stat(sensor, step, x, suffix):
                'stat_summary/empty_{0}.csv'.format(cate), 'w+') as wt:
         wt.write(''.join(emptys))
 
+def remove_suffix(s):
+    idx1 = s.rfind('_')
+    return s[:idx1] + s[-4:]
+
 # kind: 'dylos', 'speck'
 def summary_label(folder, suffix, kind):
+    print 'summary_label'
     filelist = glob.glob(parent_dir(os.getcwd()) + folder + suffix)
-    print len(filelist)
     dfs_label = []
     df_lookup = pd.read_csv(os.getcwd() + '/input/ROCIS  LCMP Participants by Cohort_03-15-2016.csv')
     df_lookup.sort('ROUND', inplace=True)
@@ -623,6 +627,13 @@ def summary_label(folder, suffix, kind):
     cols = list(df_label)
     cols.remove('filename')
     cols.insert(0, 'filename')
+    df_overwrite = pd.read_csv('/media/yujiex/work/ROCIS/ROCIS/routines/input/location/csv coorections by LW_01-28-17.csv')
+    df_overwrite = df_overwrite[['file', 'LW Correction']]
+    df_overwrite['file'] = df_overwrite['file'].map(remove_suffix)
+    ori_dict = dict(zip(df_label['filename'], df_label['general_location_standard']))
+    overwrite_dict = dict(zip(df_overwrite['file'], df_overwrite['LW Correction']))
+    ori_dict.update(overwrite_dict)
+    df_label['general_location_standard'] = df_label['filename'].map(ori_dict)
     df_label = df_label[cols]
     df_label.to_csv(parent_dir(os.getcwd()) + \
               folder + 'label_summary/label.csv', index=False)
@@ -856,8 +867,8 @@ def cleaning_dylos(x):
     for infile in newfiles:
         shutil.copyfile(infile, infile.replace('new_data', 'raw_data/round_all'))
         print 'copy {0}'.format(infile[infile.rfind('/') + 1:])
-    # use this if need to process all raw data
-    # files = glob.glob(util.get_path('Dylos', 'raw_data', 'all') + '*')
+    # # use this if need to process all raw data
+    # # files = glob.glob(util.get_path('Dylos', 'raw_data', 'all') + '*')
     files = [z.replace('new_data', 'raw_data/round_all') for z in newfiles]
     mlines = ['filename,multiplier\n']
     for i, f in enumerate(files):
@@ -1508,14 +1519,14 @@ def run_routine():
     # mergeIRO()
 
     # added 0725 to create dygraphs
-    cohort = 14
-    # home=None
-    home = 'KAM'
+    cohort = 15
+    home=None
+    # home = 'TRH'
     concat_dylos(['general_location_standard',
                   'specific_location_standard'], cohort=cohort, history=False, home=home)
     merge_loc('concat_gen_spe', cohort=cohort, history=False, home=home)
     copyplot2Dropbox()
-    # combine_dygraph_IOR('O', cohort=cohort)
+    combine_dygraph_IOR('O', cohort=cohort)
 
     # Create dygraphs for Dylos outdoor for each cohort
     # for i in (range(1, 9)):
