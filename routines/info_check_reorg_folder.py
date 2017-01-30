@@ -386,7 +386,7 @@ def parse_filename(filename, initial_list, home_id_dict, round_dict,
     general_loc = ['inside', 'in', 'indoors', 'indoor', 'I',
                    'IDining', 'Oporch', 'outside', 'out', 'outdoors',
                    'outdoor', 'O', '0', 'roamer', 'roam', 'rover',
-                   'R', 'F']
+                   'R', 'F', 'S']
     general_loc_upper = [x.upper() for x in general_loc]
     specific_loc = ['garage', 'office', 'livingroom', 'kitchen',
                     'kirchen', 'kit', 'bbedroom',
@@ -627,13 +627,28 @@ def summary_label(folder, suffix, kind):
     cols = list(df_label)
     cols.remove('filename')
     cols.insert(0, 'filename')
-    df_overwrite = pd.read_csv('/media/yujiex/work/ROCIS/ROCIS/routines/input/location/csv coorections by LW_01-28-17.csv')
-    df_overwrite = df_overwrite[['file', 'LW Correction']]
-    df_overwrite['file'] = df_overwrite['file'].map(remove_suffix)
+    # massy overwrite label by hard-coding
+    df_overwriteIOR = pd.read_csv('/media/yujiex/work/ROCIS/ROCIS/routines/input/location/csv coorections by LW_01-28-17.csv')
+    df_overwriteIOR = df_overwriteIOR[['file', 'LW Correction']]
+    df_overwriteIOR['file'] = df_overwriteIOR['file'].map(remove_suffix)
+    df_overwriteIOR2 = pd.read_csv('/media/yujiex/work/ROCIS/ROCIS/routines/input/location/Small_round_all_unique_01-28-17_LW_SORT2.csv')
+    df_overwriteIOR2 = df_overwriteIOR2[['filename', 'LW Correction']]
+    df_overwriteIOR2.dropna(axis=0, how='any', inplace=True)
     ori_dict = dict(zip(df_label['filename'], df_label['general_location_standard']))
-    overwrite_dict = dict(zip(df_overwrite['file'], df_overwrite['LW Correction']))
-    ori_dict.update(overwrite_dict)
+    overwriteIOR_dict = dict(zip(df_overwriteIOR['file'], df_overwriteIOR['LW Correction']))
+    overwriteIOR_dict2 = dict(zip(df_overwriteIOR2['filename'], df_overwriteIOR2['LW Correction']))
+    ori_dict.update(overwriteIOR_dict)
+    ori_dict.update(overwriteIOR_dict2)
     df_label['general_location_standard'] = df_label['filename'].map(ori_dict)
+    
+    df_overwriteID = pd.read_csv('/media/yujiex/work/ROCIS/ROCIS/routines/input/id/id_change.csv')
+    df_overwriteID = df_overwriteID[['filename', 'home_id_standard']]
+    df_overwriteID.dropna(axis=0, how='any', inplace=True)
+    overwriteID_dict = dict(zip(df_overwriteID['filename'], df_overwriteID['home_id_standard']))
+    id_dict = dict(zip(df_label['filename'], df_label['home_id_standard']))
+    id_dict.update(overwriteID_dict)
+    df_label['home_id_standard'] = df_label['filename'].map(id_dict)
+
     df_label = df_label[cols]
     df_label.to_csv(parent_dir(os.getcwd()) + \
               folder + 'label_summary/label.csv', index=False)
@@ -862,30 +877,30 @@ def cleaning_dylos(x):
     # 3. copy from round_excel to round_all
     # copy_excel()
 
-    # need to replace 'new_data' folder with newly downloaded
-    newfiles = glob.glob(util.get_path('Dylos', 'new_data') + '*')
-    for infile in newfiles:
-        shutil.copyfile(infile, infile.replace('new_data', 'raw_data/round_all'))
-        print 'copy {0}'.format(infile[infile.rfind('/') + 1:])
+    # # need to replace 'new_data' folder with newly downloaded
+    # newfiles = glob.glob(util.get_path('Dylos', 'new_data') + '*')
+    # for infile in newfiles:
+    #     shutil.copyfile(infile, infile.replace('new_data', 'raw_data/round_all'))
+    #     print 'copy {0}'.format(infile[infile.rfind('/') + 1:])
     # # use this if need to process all raw data
     # # files = glob.glob(util.get_path('Dylos', 'raw_data', 'all') + '*')
-    files = [z.replace('new_data', 'raw_data/round_all') for z in newfiles]
-    mlines = ['filename,multiplier\n']
-    for i, f in enumerate(files):
-        if i % step_size == 0:
-            print i
-        m = cd.cleaning(f, f.replace('raw_data', 'reform_'))
-        mlines.append('{0},{1}\n'.format(f[f.rfind('/') + 1:], m))
-    with open (util.get_path('Dylos', 'reform_', 'all') + 'missing_summary/m.csv', 'w+') as wt:
-        wt.write(''.join(mlines))
+    # files = [z.replace('new_data', 'raw_data/round_all') for z in newfiles]
+    # mlines = ['filename,multiplier\n']
+    # for i, f in enumerate(files):
+    #     if i % step_size == 0:
+    #         print i
+    #     m = cd.cleaning(f, f.replace('raw_data', 'reform_'))
+    #     mlines.append('{0},{1}\n'.format(f[f.rfind('/') + 1:], m))
+    # with open (util.get_path('Dylos', 'reform_', 'all') + 'missing_summary/m.csv', 'w+') as wt:
+    #     wt.write(''.join(mlines))
 
-    summary_stat('Dylos', 'reform_', 'all', '*')
-    summary_label('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
-    summary_all_general('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), 'dylos', 'all')
-    remove_dup_files('reform_', x)
-    correct_time()
-    chop_wrong_time()
-    summary_stat('Dylos', 'chop_start_', 'all', '*.[a-z][a-z][a-z]')
+    # summary_stat('Dylos', 'reform_', 'all', '*')
+    # summary_label('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), '*.[a-z][a-z][a-z]', 'dylos')
+    # summary_all_general('/DataBySensor/Dylos/reform_/round_{0}/'.format(x), 'dylos', 'all')
+    # remove_dup_files('reform_', x)
+    # correct_time()
+    # chop_wrong_time()
+    # summary_stat('Dylos', 'chop_start_', 'all', '*.[a-z][a-z][a-z]')
     summary_label('/DataBySensor/Dylos/chop_start_/round_all/',
                   '*.[a-z][a-z][a-z]', 'dylos')
     summary_all_general('/DataBySensor/Dylos/chop_start_/round_all/',
@@ -1098,6 +1113,7 @@ def concat_dylos(gb_list,cohort=None, history=True, home=None):
         files = group['filename'].tolist()
         dfs = []
         for f in files:
+            print f
             df = pd.read_csv(util.get_path('Dylos', 'chop_start_', 'all') + f)
             # df['filename'] = f
             dfs.append(df)
@@ -1520,12 +1536,13 @@ def run_routine():
 
     # added 0725 to create dygraphs
     cohort = 15
-    home=None
-    # home = 'TRH'
-    concat_dylos(['general_location_standard',
-                  'specific_location_standard'], cohort=cohort, history=False, home=home)
-    merge_loc('concat_gen_spe', cohort=cohort, history=False, home=home)
-    copyplot2Dropbox()
+    # cohort = None
+    # # home=None
+    # home = 'AXR'
+    # concat_dylos(['general_location_standard',
+    #               'specific_location_standard'], cohort=cohort, history=False, home=home)
+    # merge_loc('concat_gen_spe', cohort=cohort, history=False, home=home)
+    # copyplot2Dropbox()
     combine_dygraph_IOR('O', cohort=cohort)
 
     # Create dygraphs for Dylos outdoor for each cohort
